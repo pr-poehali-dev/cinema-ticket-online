@@ -1,11 +1,10 @@
 import json
 import os
-import urllib.request
-import urllib.parse
 
 
 def handler(event: dict, context) -> dict:
-    '''Принимает заявку на покупку билета и отправляет её письмом через EmailJS'''
+    '''Принимает заявку на покупку билета и сохраняет её в базе данных'''
+    import psycopg2
     method = event.get('httpMethod', 'GET')
 
     cors_headers = {
@@ -30,7 +29,7 @@ def handler(event: dict, context) -> dict:
     phone = (body.get('phone') or '').strip()
     movie = (body.get('movie') or '').strip()
     session_time = (body.get('time') or '').strip()
-    seats = str(body.get('seats') or '1')
+    seats = int(body.get('seats') or 1)
     comment = (body.get('comment') or '').strip()
 
     if not name or not phone:
@@ -40,54 +39,15 @@ def handler(event: dict, context) -> dict:
             'body': json.dumps({'error': 'Укажите имя и телефон'}),
         }
 
-    service_id = os.environ.get('EMAILJS_SERVICE_ID')
-    template_id = os.environ.get('EMAILJS_TEMPLATE_ID')
-    public_key = os.environ.get('EMAILJS_PUBLIC_KEY')
-
-    if not service_id or not template_id or not public_key:
-        return {
-            'statusCode': 500,
-            'headers': {**cors_headers, 'Content-Type': 'application/json'},
-            'body': json.dumps({'error': 'Email-сервис не настроен'}),
-        }
-
-    payload = json.dumps({
-        'service_id': service_id,
-        'template_id': template_id,
-        'user_id': public_key,
-        'template_params': {
-            'from_name': name,
-            'phone': phone,
-            'movie': movie or 'не указан',
-            'session_time': session_time or 'не указан',
-            'seats': seats,
-            'comment': comment or 'нет',
-            'to_email': 'v69607972@gmail.com',
-        },
-    }).encode('utf-8')
-
-    try:
-        req = urllib.request.Request(
-            'https://api.emailjs.com/api/v1.0/email/send',
-            data=payload,
-            headers={'Content-Type': 'application/json', 'origin': 'https://poehali.dev'},
-            method='POST',
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            resp.read()
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode('utf-8', errors='ignore')
-        return {
-            'statusCode': 502,
-            'headers': {**cors_headers, 'Content-Type': 'application/json'},
-            'body': json.dumps({'error': f'Ошибка отправки письма ({e.code})', 'detail': detail}),
-        }
-    except Exception as e:
-        return {
-            'statusCode': 502,
-            'headers': {**cors_headers, 'Content-Type': 'application/json'},
-            'body': json.dumps({'error': 'Ошибка отправки письма', 'detail': str(e)}),
-        }
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO ticket_orders (name, phone, movie, session_time, seats, comment) VALUES (%s, %s, %s, %s, %s, %s)",
+        (name, phone, movie or None, session_time or None, seats, comment or None)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
 
     return {
         'statusCode': 200,
