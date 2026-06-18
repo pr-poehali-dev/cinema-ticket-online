@@ -74,9 +74,35 @@ def handler(event: dict, context) -> dict:
         'parse_mode': 'HTML',
     }).encode()
 
-    req = urllib.request.Request(url, data=data, method='POST')
-    with urllib.request.urlopen(req) as resp:
-        resp.read()
+    try:
+        req = urllib.request.Request(url, data=data, method='POST')
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            tg_resp = json.loads(resp.read())
+        if not tg_resp.get('ok'):
+            return {
+                'statusCode': 502,
+                'headers': {**cors_headers, 'Content-Type': 'application/json'},
+                'body': json.dumps({'error': 'Telegram вернул ошибку', 'detail': tg_resp}),
+            }
+    except urllib.error.HTTPError as e:
+        body_err = e.read().decode('utf-8', errors='ignore')
+        if e.code == 403:
+            return {
+                'statusCode': 502,
+                'headers': {**cors_headers, 'Content-Type': 'application/json'},
+                'body': json.dumps({'error': 'Бот заблокирован — нажмите Start у бота в Telegram', 'detail': body_err}),
+            }
+        return {
+            'statusCode': 502,
+            'headers': {**cors_headers, 'Content-Type': 'application/json'},
+            'body': json.dumps({'error': f'Telegram HTTP {e.code}', 'detail': body_err}),
+        }
+    except Exception as e:
+        return {
+            'statusCode': 502,
+            'headers': {**cors_headers, 'Content-Type': 'application/json'},
+            'body': json.dumps({'error': 'Ошибка отправки в Telegram', 'detail': str(e)}),
+        }
 
     return {
         'statusCode': 200,
