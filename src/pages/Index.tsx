@@ -1,11 +1,19 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { toast } from '@/hooks/use-toast';
 import Icon from '@/components/ui/icon';
 
 const POSTER_1 = 'https://cdn.poehali.dev/projects/59ad4ce6-0503-4bf2-bec3-cd5f39529363/files/767f09a6-ee9f-47a4-ab52-e574adc41348.jpg';
 const POSTER_2 = 'https://cdn.poehali.dev/projects/59ad4ce6-0503-4bf2-bec3-cd5f39529363/files/c93dc65b-3b7d-4cd9-880f-cc6e21617c40.jpg';
-const POSTER_3 = 'https://cdn.poehali.dev/projects/59ad4ce6-0503-4bf2-bec3-cd5f39529363/files/7fb81e81-ee90-498e-9737-dea5bfaef1cd.jpg';
+
+const ORDER_URL = 'https://functions.poehali.dev/e259e4d0-bb8a-4357-abe2-00727a88f5df';
+const PHONE = '+79837051983';
+const EMAIL = 'v69607972@gmail.com';
+const TELEGRAM = 'Katieigd';
 
 const NAV = [
   { label: 'Главная', id: 'home' },
@@ -16,22 +24,51 @@ const NAV = [
 ];
 
 const MOVIES = [
-  { title: 'Звёздный путь', genre: 'Фантастика', time: '19:00 · 21:30', price: 450, img: POSTER_1, tag: 'Премьера' },
-  { title: 'Неоновый город', genre: 'Триллер', time: '18:00 · 20:45', price: 400, img: POSTER_2, tag: 'Хит' },
-  { title: 'Золотые горы', genre: 'Фэнтези', time: '17:30 · 20:00', price: 420, img: POSTER_3, tag: 'Новинка' },
+  { title: 'ЧЕБУРАШКА 2', genre: 'Комедия', time: '19:30', price: 300, img: POSTER_1, tag: 'Премьера' },
 ];
 
 const TICKETS = [
-  { name: 'Уютный', desc: 'Стандартное место с пледом и попкорном', price: 400, icon: 'Armchair', popular: false },
-  { name: 'Премиум', desc: 'Кресло-реклайнер, плед, снеки и напиток', price: 750, icon: 'Sofa', popular: true },
-  { name: 'VIP-диван', desc: 'Двухместный диван, полный сет угощений', price: 1400, icon: 'Crown', popular: false },
+  { name: 'Уютный', desc: 'Стандартное место с пледом и попкорном', price: 300, icon: 'Armchair', popular: false },
+  { name: 'Премиум', desc: 'Кресло-реклайнер, плед, снеки и напиток', price: 600, icon: 'Sofa', popular: true },
+  { name: 'VIP-диван', desc: 'Двухместный диван, полный сет угощений', price: 1200, icon: 'Crown', popular: false },
 ];
 
 const Index = () => {
   const [email, setEmail] = useState('');
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ name: '', phone: '', movie: '', time: '', seats: '1', comment: '' });
 
   const scrollTo = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const openOrder = (movie?: { title: string; time: string }) => {
+    setForm({ name: '', phone: '', movie: movie?.title || '', time: movie?.time || '', seats: '1', comment: '' });
+    setOpen(true);
+  };
+
+  const submitOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.phone.trim()) {
+      toast({ title: 'Заполните имя и телефон', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(ORDER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error();
+      setOpen(false);
+      toast({ title: 'Заявка отправлена!', description: 'Менеджер свяжется с вами в ближайшее время.' });
+    } catch {
+      toast({ title: 'Не удалось отправить', description: 'Попробуйте позвонить нам напрямую.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -50,7 +87,7 @@ const Index = () => {
               </button>
             ))}
           </nav>
-          <Button onClick={() => scrollTo('tickets')} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+          <Button onClick={() => openOrder()} className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
             Купить билет
           </Button>
         </div>
@@ -110,11 +147,11 @@ const Index = () => {
                   </div>
                   <h3 className="font-display text-2xl font-bold mb-3">{m.title}</h3>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                    <Icon name="Clock" size={16} /> {m.time}
+                    <Icon name="Clock" size={16} /> Сеанс в {m.time}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="font-display text-xl font-bold">от {m.price} ₽</span>
-                    <Button onClick={() => scrollTo('tickets')} size="sm" className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold">
+                    <Button onClick={() => openOrder(m)} size="sm" className="bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold">
                       Билет
                     </Button>
                   </div>
@@ -142,7 +179,7 @@ const Index = () => {
                 <h3 className="font-display text-2xl font-bold mb-2">{t.name}</h3>
                 <p className="text-muted-foreground text-sm mb-6 min-h-[40px]">{t.desc}</p>
                 <div className="font-display text-4xl font-bold mb-6">{t.price} <span className="text-lg text-muted-foreground">₽</span></div>
-                <Button className={`w-full font-semibold ${t.popular ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : 'bg-muted hover:bg-muted/80 text-foreground'}`}>
+                <Button onClick={() => openOrder()} className={`w-full font-semibold ${t.popular ? 'bg-primary hover:bg-primary/90 text-primary-foreground' : 'bg-muted hover:bg-muted/80 text-foreground'}`}>
                   Забронировать
                 </Button>
               </div>
@@ -222,9 +259,21 @@ const Index = () => {
             <div>
               <h4 className="font-display font-bold mb-4">Контакты</h4>
               <ul className="space-y-3 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2"><Icon name="Phone" size={16} className="text-accent" /> +7 (900) 123-45-67</li>
-                <li className="flex items-center gap-2"><Icon name="Mail" size={16} className="text-accent" /> hello@kinodom.ru</li>
-                <li className="flex items-center gap-2"><Icon name="MapPin" size={16} className="text-accent" /> Москва, ул. Киноварная, 7</li>
+                <li>
+                  <a href={`tel:${PHONE}`} className="flex items-center gap-2 hover:text-foreground transition-colors">
+                    <Icon name="Phone" size={16} className="text-accent" /> {PHONE}
+                  </a>
+                </li>
+                <li>
+                  <a href={`mailto:${EMAIL}`} className="flex items-center gap-2 hover:text-foreground transition-colors">
+                    <Icon name="Mail" size={16} className="text-accent" /> {EMAIL}
+                  </a>
+                </li>
+                <li>
+                  <a href={`https://t.me/${TELEGRAM}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-foreground transition-colors">
+                    <Icon name="Send" size={16} className="text-accent" /> @{TELEGRAM}
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
@@ -235,14 +284,10 @@ const Index = () => {
               </ul>
             </div>
             <div>
-              <h4 className="font-display font-bold mb-4">Мы в сети</h4>
-              <div className="flex gap-3">
-                {['Send', 'Instagram', 'Youtube'].map((s) => (
-                  <a key={s} href="#" className="w-10 h-10 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors">
-                    <Icon name={s} size={18} />
-                  </a>
-                ))}
-              </div>
+              <h4 className="font-display font-bold mb-4">Связаться</h4>
+              <a href={`https://t.me/${TELEGRAM}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors">
+                <Icon name="Send" size={18} /> Написать менеджеру
+              </a>
             </div>
           </div>
           <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
@@ -250,6 +295,43 @@ const Index = () => {
           </div>
         </div>
       </footer>
+
+      {/* ORDER DIALOG */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl">Купить билет</DialogTitle>
+            <DialogDescription>Оставьте контакты — менеджер подтвердит бронь.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitOrder} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Ваше имя *</Label>
+              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Как к вам обращаться" className="bg-background/60" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Телефон *</Label>
+              <Input id="phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+7 ..." className="bg-background/60" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="movie">Фильм</Label>
+                <Input id="movie" value={form.movie} onChange={(e) => setForm({ ...form, movie: e.target.value })} placeholder="Название" className="bg-background/60" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="seats">Кол-во билетов</Label>
+                <Input id="seats" type="number" min="1" value={form.seats} onChange={(e) => setForm({ ...form, seats: e.target.value })} className="bg-background/60" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="comment">Комментарий</Label>
+              <Textarea id="comment" value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} placeholder="Пожелания к сеансу" className="bg-background/60 resize-none" rows={2} />
+            </div>
+            <Button type="submit" disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold h-11">
+              {loading ? 'Отправляем...' : 'Отправить заявку'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
